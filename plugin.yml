@@ -1,0 +1,6 @@
+name: ChestSorter
+version: 1.0
+author: Aearost
+main: com.aearost.chestsorter.ChestSorter
+api-version: 1.16
+description: Responsible for the mechanics of sorting chests.
