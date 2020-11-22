@@ -13,6 +13,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import com.aearost.chestsorter.ChestSorter;
+import com.aearost.chestsorter.tree.BinaryTree;
+import com.aearost.chestsorter.tree.Node;
 
 public class ChestSort implements Listener {
 
@@ -35,12 +37,14 @@ public class ChestSort implements Listener {
 				if (player.isSneaking()) {
 					Chest chest = (Chest) block.getState();
 					ItemStack[] contents = chest.getInventory().getStorageContents();
+					int chestLength = contents.length;
 					
-					
+					BinaryTree sortedContents = BinaryTree.makeBinaryTree(contents);
+					Bukkit.broadcastMessage("Traversing");
+					sortedContents.traverseInOrder(sortedContents.getRoot());
+					ItemStack[] sortedContentsArray = sortedContents.translateInOrder(chestLength);
 				}
 			}
-			
-			
 		}
 		
 	}
