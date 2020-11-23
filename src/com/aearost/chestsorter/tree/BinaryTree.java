@@ -1,19 +1,20 @@
 package com.aearost.chestsorter.tree;
 
-import java.util.Stack;
-
 import org.bukkit.Bukkit;
 import org.bukkit.inventory.ItemStack;
 
 public class BinaryTree {
 	private Node root;
+	private ItemStack[] itemsInOrder;
+	private int itemsInOrderIndex;
 
-	private BinaryTree() {
+	private BinaryTree(int chestLength) {
+		root = null;
+		itemsInOrder = new ItemStack[chestLength];
 	}
 
 	public static BinaryTree makeBinaryTree(ItemStack[] items) {
-
-		BinaryTree tree = new BinaryTree();
+		BinaryTree tree = new BinaryTree(items.length);
 		for (ItemStack item : items) {
 			if (item != null) {
 				tree.add(item);
@@ -58,55 +59,46 @@ public class BinaryTree {
 		return current;
 	}
 
-	public void traverseInOrder(Node node) {
+	public void printInOrder(Node node) {
 		if (node != null) {
-			traverseInOrder(node.getLeftChild());
-			Bukkit.broadcastMessage(node.getItem().toString());
-			traverseInOrder(node.getRightChild());
+			printInOrder(node.getLeftChild());
+			Bukkit.broadcastMessage(node.getItem().toString() + ", Quantity=" + node.getQuantity());
+			printInOrder(node.getRightChild());
 		}
 	}
-
-	public ItemStack[] translateInOrder(int chestLength) {
-		ItemStack[] itemsInOrder = new ItemStack[chestLength];
-		if (root == null) {
-			return itemsInOrder;
-		}
-
-		Stack<Node> s = new Stack<Node>();
-		Node curr = root;
-
-		// traverse the tree
-		while (curr != null || s.size() > 0) {
-
-			/*
-			 * Reach the left most Node of the curr Node
-			 */
-			while (curr != null) {
-				/*
-				 * place pointer to a tree node on the stack before traversing the node's left
-				 * subtree
-				 */
-				s.push(curr);
-				curr = curr.getLeftChild();
+	
+	public void traverseAndStoreInOrder(Node node) {
+		if (node != null) {
+			traverseAndStoreInOrder(node.getLeftChild());
+			
+			while (node.getQuantity() > node.getItem().getMaxStackSize()) {
+				ItemStack item = node.getItem().clone();
+				item.setAmount(item.getMaxStackSize());
+				this.itemsInOrder[this.itemsInOrderIndex] = item;
+				this.itemsInOrderIndex++;
+				node.setQuantity(node.getQuantity() - item.getMaxStackSize());
 			}
-
-			/* Current must be NULL at this point */
-			curr = s.pop();
-
-			//System.out.print(curr.data + " ");
-
-			/*
-			 * we have visited the node and its left subtree. Now, it's right subtree's turn
-			 */
-			curr = curr.getRightChild();
+			node.getItem().setAmount(node.getQuantity());
+			this.itemsInOrder[this.itemsInOrderIndex] = node.getItem();
+			this.itemsInOrderIndex++;
+			
+			traverseAndStoreInOrder(node.getRightChild());
 		}
 	}
 
 	public Node getRoot() {
-		return root;
+		return this.root;
 	}
 
 	public void setRoot(Node node) {
 		this.root = node;
+	}
+	
+	public ItemStack[] getItemsInOrder() {
+		if (this.root == null) {
+			return this.itemsInOrder;
+		}
+		traverseAndStoreInOrder(this.root);
+		return this.itemsInOrder;
 	}
 }

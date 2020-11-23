@@ -1,24 +1,20 @@
 package com.aearost.chestsorter.tree;
 
 import java.util.Map;
-import java.util.UUID;
 
 import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.inventory.meta.KnowledgeBookMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionData;
 
 import com.aearost.chestsorter.ChatUtils;
 
 public class Node {
-
 	private Node leftChild;
 	private Node rightChild;
-
 	private ItemStack item;
 	private String name;
 	private int quantity;
@@ -93,16 +89,7 @@ public class Node {
 	}
 
 	public int compareTo(ItemStack otherItem) {
-
-		// check for item vs enchanted version of item?
-		// won't work well with slimefun items? actually it will work better :o
-
-		// Standard checks
-		if (!this.hasItemMeta && otherItem.hasItemMeta()) {
-			return 1;
-		} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
-			return -1;
-		} else if (this.isBlock && !otherItem.getType().isBlock()) {
+		if (this.isBlock && !otherItem.getType().isBlock()) {
 			return 1;
 		} else if (!this.isBlock && otherItem.getType().isBlock()) {
 			return -1;
@@ -121,45 +108,80 @@ public class Node {
 					// Both display names are equal; check if they are empty
 					if (thisStripped.isEmpty()) {
 						// Because they are empty, we are almost sure that the items being compared are
-						// from base Minecraft, so we can directly compare with their material name
-						compared = otherItem.getType().name().compareTo(this.getName());
+						// from base Minecraft; first, check their metas to make sure they shouldn't be
+						// sorted in a specific way
+						ItemMeta thisMeta = this.item.getItemMeta();
+						ItemMeta otherMeta = otherItem.getItemMeta();
+
+//						Bukkit.broadcastMessage("-----");
+//						Bukkit.broadcastMessage("this: " + this.item.toString());
+//						Bukkit.broadcastMessage("other: " + otherItem.toString());
+						if (thisMeta instanceof PotionMeta && otherMeta instanceof PotionMeta) {
+							return potionCompareTo(this.item, otherItem);
+						} else if (thisMeta instanceof EnchantmentStorageMeta
+								&& otherMeta instanceof EnchantmentStorageMeta) {
+							return enchantedBookCompareTo(this.item, otherItem);
+						}
+						// If their metas don't match any one we specified, sort directly by name
+						else {
+							compared = otherItem.getType().name().compareTo(this.getName());
+							if (compared > 0) {
+								return 1;
+							} else if (compared < 0) {
+								return -1;
+							} else {
+								// If nothing matches, place the item at the end
+								return 1;
+							}
+						}
+					} else {
+						// Both names correspond to the same exact item
+						return 0;
+					}
+				}
+			} else {
+				if (this.isBlock) {
+					if (!this.hasItemMeta && otherItem.hasItemMeta()) {
+						return 1;
+					} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
+						return -1;
+					} else {
+						int compared = otherItem.getType().name().compareTo(this.name);
 						if (compared > 0) {
 							return 1;
 						} else if (compared < 0) {
 							return -1;
 						} else {
-							// If they have the same material name, we must check their metas
-							ItemMeta thisMeta = this.item.getItemMeta();
-							ItemMeta otherMeta = otherItem.getItemMeta();
-
-							Bukkit.broadcastMessage("-----");
-							Bukkit.broadcastMessage("this: " + this.item.toString());
-							Bukkit.broadcastMessage("other: " + otherItem.toString());
-							if (thisMeta instanceof PotionMeta && otherMeta instanceof PotionMeta) {
-								Bukkit.broadcastMessage("Both items are potions");
-								return potionCompareTo(this.item, otherItem);
-							} else if (thisMeta instanceof EnchantmentStorageMeta
-									&& otherMeta instanceof EnchantmentStorageMeta) {
-								Bukkit.broadcastMessage("Both items are books");
-								return enchantedBookCompareTo(this.item, otherItem);
-							}
-
-							// If no metas match, place the item at the end
+							// Items are the same
+							return 0;
+						}
+					}
+				} else {
+					// We are looking at two items; we want to group all spawn eggs together
+					if (this.name.contains("SPAWN_EGG")) {
+						if (!otherItem.getType().name().contains("SPAWN_EGG")) {
+							return -1;
+						}
+					} else if (otherItem.getType().name().contains("SPAWN_EGG")) {
+						if (!this.name.contains("SPAWN_EGG")) {
 							return 1;
 						}
-					} else {
-						return 0;
 					}
-				}
-			} else {
-				int compared = otherItem.getType().name().compareTo(this.getName());
-				if (compared > 0) {
-					return 1;
-				} else if (compared < 0) {
-					return -1;
-				} else {
-					// Items are the same
-					return 0;
+					
+					int compared = otherItem.getType().name().compareTo(this.name);
+					if (compared > 0) {
+						return 1;
+					} else if (compared < 0) {
+						return -1;
+					} else {
+						if (!this.hasItemMeta && otherItem.hasItemMeta()) {
+							return 1;
+						} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
+							return -1;
+						} else {
+							return 0;
+						}
+					}
 				}
 			}
 		}
@@ -268,10 +290,10 @@ public class Node {
 
 	@Override
 	public String toString() {
-		if (this.hasItemMeta) {
-			// return this.item.getItemMeta().getDisplayName();
+		if (this.hasItemMeta && (!(this.item.getItemMeta() instanceof PotionMeta)
+				|| !(this.item.getItemMeta() instanceof EnchantmentStorageMeta))) {
+			return this.item.getItemMeta().getDisplayName();
 		}
-		return "Name: " + name;
+		return name;
 	}
-
 }
