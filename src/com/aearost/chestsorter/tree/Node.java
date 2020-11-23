@@ -3,6 +3,8 @@ package com.aearost.chestsorter.tree;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
@@ -122,7 +124,7 @@ public class Node {
 							return potionCompareTo(this.item, otherItem);
 						} else if (thisMeta instanceof EnchantmentStorageMeta
 								&& otherMeta instanceof EnchantmentStorageMeta) {
-							return enchantedBookCompareTo(this.item, otherItem);
+							return enchantedItemCompareTo(this.item, otherItem);
 						}
 
 						// If their metas don't match any one we specified, sort directly by name
@@ -192,7 +194,6 @@ public class Node {
 				}
 			}
 		}
-
 	}
 
 	/**
@@ -219,28 +220,10 @@ public class Node {
 			} else if (compared < 0) {
 				return -1;
 			} else {
-				// Effects are the same
-				int potion1Modifier = -1;
-				if (potion1Data.isExtended()) {
-					potion1Modifier = 0;
-				} else if (potion1Data.isUpgraded()) {
-					potion1Modifier = 1;
-				}
-
-				int potion2Modifier = -1;
-				if (potion2Data.isExtended()) {
-					potion2Modifier = 0;
-				} else if (potion2Data.isUpgraded()) {
-					potion2Modifier = 1;
-				}
-
-				if (potion1Modifier > potion2Modifier) {
-					return -1;
-				} else if (potion1Modifier < potion2Modifier) {
-					return 1;
-				} else {
-					return 0;
-				}
+				// Effects are the same, check the modifiers
+				int potion1Modifier = getPotionModifier(potion1Data);
+				int potion2Modifier = getPotionModifier(potion2Data);
+				return compareInts(potion1Modifier, potion2Modifier);
 			}
 		} else {
 			String potion = "POTION";
@@ -260,67 +243,65 @@ public class Node {
 	}
 
 	/**
-	 * Compares two enchanted books.
-	 * 
-	 * @param book1
-	 * @param book2
-	 * @return 0 if the books have the same exact enchantments and same number, 1 if
-	 *         book1 is less than book2 or -1 if book1 is greater than book2
+	 * @param int1
+	 * @param int2
+	 * @return -1, 0 or 1 as int1 is less than, equal to, or greater than int2
 	 */
-	private int enchantedBookCompareTo(ItemStack book1, ItemStack book2) {
-		EnchantmentStorageMeta book1Meta = (EnchantmentStorageMeta) book1.getItemMeta();
-		EnchantmentStorageMeta book2Meta = (EnchantmentStorageMeta) book2.getItemMeta();
-		List<String> book1Enchants = new ArrayList<String>();
-		List<String> book2Enchants = new ArrayList<String>();
-
-		for (Map.Entry<Enchantment, Integer> entry : book1Meta.getStoredEnchants().entrySet()) {
-			book1Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
-		}
-
-		for (Map.Entry<Enchantment, Integer> entry : book2Meta.getStoredEnchants().entrySet()) {
-			book2Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
-		}
-
-		int book1EnchantsSize = book1Enchants.size();
-		int book2EnchantsSize = book2Enchants.size();
-		int smallerListLength = book1EnchantsSize < book2EnchantsSize ? book1EnchantsSize : book2EnchantsSize;
-		for (int i = 0; i < smallerListLength; i++) {
-			if (book2Enchants.get(i).compareTo(book1Enchants.get(i)) < 0) {
-				return -1;
-			} else if (book2Enchants.get(i).compareTo(book1Enchants.get(i)) > 0) {
-				return 1;
-			}
-		}
-
-		if (book1EnchantsSize > book2EnchantsSize) {
+	private int compareInts(int int1, int int2) {
+		if (int1 < int2) {
 			return -1;
-		} else if (book1EnchantsSize < book2EnchantsSize) {
-			return 1;
-		} else {
+		} else if (int1 == int2) {
 			return 0;
+		} else {
+			return 1;
 		}
 	}
 
 	/**
-	 * Compares two enchanted items.
+	 * Determines if the given PotionData is normal, extended or upgraded.
 	 * 
-	 * @param book1
-	 * @param book2
-	 * @return 0 if the books have the same exact enchantments, same number and same
-	 *         durability - 1 if book1 is less than book2 or -1 if book1 is greater
-	 *         than book2
+	 * @param potion
+	 * @return -1 if it's a normal potion, 0 if it is an extended potion or 1 if it
+	 *         is an upgraded potion
+	 */
+	private int getPotionModifier(PotionData potion) {
+		if (potion.isExtended()) {
+			return 0;
+		} else if (potion.isUpgraded()) {
+			return -1;
+		} else {
+			return 1;
+		}
+	}
+
+	/**
+	 * Compares two enchanted items. Also works on two enchanted books.
+	 * 
+	 * @param eItem1
+	 * @param eItem2
+	 * @return 0 if the items have the same exact enchantments, same number and same
+	 *         durability - 1 if eItem1 is less than eItem2 or -1 if eItem1 is
+	 *         greater than eItem2
 	 */
 	private int enchantedItemCompareTo(ItemStack eItem1, ItemStack eItem2) {
-		ItemMeta eItem1Meta = eItem1.getItemMeta();
-		ItemMeta eItem2Meta = eItem2.getItemMeta();
+		Set<Entry<Enchantment, Integer>> e1ItemMetaEnchants;
+		Set<Entry<Enchantment, Integer>> e2ItemMetaEnchants;
+		if (eItem1.getItemMeta() instanceof EnchantmentStorageMeta
+				&& eItem2.getItemMeta() instanceof EnchantmentStorageMeta) {
+			e1ItemMetaEnchants = ((EnchantmentStorageMeta) eItem1.getItemMeta()).getStoredEnchants().entrySet();
+			e2ItemMetaEnchants = ((EnchantmentStorageMeta) eItem2.getItemMeta()).getStoredEnchants().entrySet();
+		} else {
+			e1ItemMetaEnchants = eItem1.getItemMeta().getEnchants().entrySet();
+			e2ItemMetaEnchants = eItem2.getItemMeta().getEnchants().entrySet();
+		}
 		List<String> eItem1Enchants = new ArrayList<String>();
 		List<String> eItem2Enchants = new ArrayList<String>();
 
-		for (Map.Entry<Enchantment, Integer> entry : eItem1Meta.getEnchants().entrySet()) {
+		for (Map.Entry<Enchantment, Integer> entry : e1ItemMetaEnchants) {
 			eItem1Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
 		}
 
-		for (Map.Entry<Enchantment, Integer> entry : eItem2Meta.getEnchants().entrySet()) {
+		for (Map.Entry<Enchantment, Integer> entry : e2ItemMetaEnchants) {
 			eItem2Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
 		}
 
@@ -340,17 +321,18 @@ public class Node {
 		} else if (eItem1EnchantsSize < eItem2EnchantsSize) {
 			return 1;
 		} else {
-			// In order of durability if all enchantments match, if the item has durability
-			if (eItem1Meta instanceof Damageable) {
-				boolean eItem1HasDamage = ((Damageable) eItem1Meta).hasDamage();
-				boolean eItem2HasDamage = ((Damageable) eItem2Meta).hasDamage();
+			// Sort in order of durability if all enchantments match (if the item has
+			// durability)
+			if (eItem1.getItemMeta() instanceof Damageable && eItem2.getItemMeta() instanceof Damageable) {
+				boolean eItem1HasDamage = ((Damageable) eItem1.getItemMeta()).hasDamage();
+				boolean eItem2HasDamage = ((Damageable) eItem2.getItemMeta()).hasDamage();
 				if (eItem1HasDamage && !eItem2HasDamage) {
 					return -1;
 				} else if (!eItem1HasDamage && eItem2HasDamage) {
 					return 1;
 				} else if (eItem1HasDamage && eItem2HasDamage) {
-					int eItem1Damage = ((Damageable) eItem1Meta).getDamage();
-					int eItem2Damage = ((Damageable) eItem2Meta).getDamage();
+					int eItem1Damage = ((Damageable) eItem1.getItemMeta()).getDamage();
+					int eItem2Damage = ((Damageable) eItem2.getItemMeta()).getDamage();
 					if (eItem1Damage < eItem2Damage) {
 						return -1;
 					} else if (eItem1Damage > eItem2Damage) {
