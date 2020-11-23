@@ -1,10 +1,12 @@
 package com.aearost.chestsorter.tree;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
-import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
@@ -122,6 +124,7 @@ public class Node {
 								&& otherMeta instanceof EnchantmentStorageMeta) {
 							return enchantedBookCompareTo(this.item, otherItem);
 						}
+
 						// If their metas don't match any one we specified, sort directly by name
 						else {
 							compared = otherItem.getType().name().compareTo(this.getName());
@@ -130,7 +133,11 @@ public class Node {
 							} else if (compared < 0) {
 								return -1;
 							} else {
-								// If nothing matches, place the item at the end
+								// If names match, place in order of enchantment
+								if (!this.isBlock && !otherItem.getType().isBlock()) {
+									return enchantedItemCompareTo(this.item, otherItem);
+								}
+								// If nothing matches, place item at the end
 								return 1;
 							}
 						}
@@ -167,7 +174,7 @@ public class Node {
 							return 1;
 						}
 					}
-					
+
 					int compared = otherItem.getType().name().compareTo(this.name);
 					if (compared > 0) {
 						return 1;
@@ -253,38 +260,109 @@ public class Node {
 	}
 
 	/**
-	 * Compares two enchanted books. Only looks at the first enchantment. Because of
-	 * this, even if two books have the same first enchantment, they will be
-	 * classified as separate stacks. Therefore, this compareTo method never returns
-	 * 0.
+	 * Compares two enchanted books.
 	 * 
 	 * @param book1
 	 * @param book2
-	 * @return 1 if the enchanted books are the "same" or -1 if book1 is greater
-	 *         than book2
+	 * @return 0 if the books have the same exact enchantments and same number, 1 if
+	 *         book1 is less than book2 or -1 if book1 is greater than book2
 	 */
-	@SuppressWarnings("deprecation")
 	private int enchantedBookCompareTo(ItemStack book1, ItemStack book2) {
 		EnchantmentStorageMeta book1Meta = (EnchantmentStorageMeta) book1.getItemMeta();
 		EnchantmentStorageMeta book2Meta = (EnchantmentStorageMeta) book2.getItemMeta();
-		String book1FirstEnchant = null;
-		String book2FirstEnchant = null;
+		List<String> book1Enchants = new ArrayList<String>();
+		List<String> book2Enchants = new ArrayList<String>();
 
 		for (Map.Entry<Enchantment, Integer> entry : book1Meta.getStoredEnchants().entrySet()) {
-			book1FirstEnchant = entry.getKey().getName() + " " + entry.getValue();
-			break;
+			book1Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
 		}
 
 		for (Map.Entry<Enchantment, Integer> entry : book2Meta.getStoredEnchants().entrySet()) {
-			book2FirstEnchant = entry.getKey().getName() + " " + entry.getValue();
-			break;
+			book2Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
 		}
 
-		int compared = book2FirstEnchant.compareTo(book1FirstEnchant);
-		if (compared < 0) {
+		int book1EnchantsSize = book1Enchants.size();
+		int book2EnchantsSize = book2Enchants.size();
+		int smallerListLength = book1EnchantsSize < book2EnchantsSize ? book1EnchantsSize : book2EnchantsSize;
+		for (int i = 0; i < smallerListLength; i++) {
+			if (book2Enchants.get(i).compareTo(book1Enchants.get(i)) < 0) {
+				return -1;
+			} else if (book2Enchants.get(i).compareTo(book1Enchants.get(i)) > 0) {
+				return 1;
+			}
+		}
+
+		if (book1EnchantsSize > book2EnchantsSize) {
 			return -1;
-		} else {
+		} else if (book1EnchantsSize < book2EnchantsSize) {
 			return 1;
+		} else {
+			return 0;
+		}
+	}
+
+	/**
+	 * Compares two enchanted items.
+	 * 
+	 * @param book1
+	 * @param book2
+	 * @return 0 if the books have the same exact enchantments, same number and same
+	 *         durability - 1 if book1 is less than book2 or -1 if book1 is greater
+	 *         than book2
+	 */
+	private int enchantedItemCompareTo(ItemStack eItem1, ItemStack eItem2) {
+		ItemMeta eItem1Meta = eItem1.getItemMeta();
+		ItemMeta eItem2Meta = eItem2.getItemMeta();
+		List<String> eItem1Enchants = new ArrayList<String>();
+		List<String> eItem2Enchants = new ArrayList<String>();
+
+		for (Map.Entry<Enchantment, Integer> entry : eItem1Meta.getEnchants().entrySet()) {
+			eItem1Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
+		}
+
+		for (Map.Entry<Enchantment, Integer> entry : eItem2Meta.getEnchants().entrySet()) {
+			eItem2Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
+		}
+
+		int eItem1EnchantsSize = eItem1Enchants.size();
+		int eItem2EnchantsSize = eItem2Enchants.size();
+		int smallerListLength = eItem1EnchantsSize < eItem2EnchantsSize ? eItem1EnchantsSize : eItem2EnchantsSize;
+		for (int i = 0; i < smallerListLength; i++) {
+			if (eItem2Enchants.get(i).compareTo(eItem1Enchants.get(i)) < 0) {
+				return -1;
+			} else if (eItem2Enchants.get(i).compareTo(eItem1Enchants.get(i)) > 0) {
+				return 1;
+			}
+		}
+
+		if (eItem1EnchantsSize > eItem2EnchantsSize) {
+			return -1;
+		} else if (eItem1EnchantsSize < eItem2EnchantsSize) {
+			return 1;
+		} else {
+			// In order of durability if all enchantments match, if the item has durability
+			if (eItem1Meta instanceof Damageable) {
+				boolean eItem1HasDamage = ((Damageable) eItem1Meta).hasDamage();
+				boolean eItem2HasDamage = ((Damageable) eItem2Meta).hasDamage();
+				if (eItem1HasDamage && !eItem2HasDamage) {
+					return -1;
+				} else if (!eItem1HasDamage && eItem2HasDamage) {
+					return 1;
+				} else if (eItem1HasDamage && eItem2HasDamage) {
+					int eItem1Damage = ((Damageable) eItem1Meta).getDamage();
+					int eItem2Damage = ((Damageable) eItem2Meta).getDamage();
+					if (eItem1Damage < eItem2Damage) {
+						return -1;
+					} else if (eItem1Damage > eItem2Damage) {
+						return 1;
+					} else {
+						return 0;
+					}
+				} else {
+					return 0;
+				}
+			}
+			return 0;
 		}
 	}
 
