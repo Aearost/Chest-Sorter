@@ -101,6 +101,12 @@ public class Node {
 		return name;
 	}
 
+	/**
+	 * 
+	 * @param otherItem
+	 * @return -1 if this.item should be placed after otherItem, 0 if they're the
+	 *         same, or 1 if this.item should be placed before otherItem
+	 */
 	public int compareTo(ItemStack otherItem) {
 		if (this.isBlock && !otherItem.getType().isBlock()) {
 			return 1;
@@ -207,8 +213,8 @@ public class Node {
 	 * 
 	 * @param block1Name
 	 * @param block2Name
-	 * @return -1 if block1Name should be placed before block2Name, 0 if both blocks
-	 *         are similar, or 1 if block1Name should be placed after block2Name
+	 * @return -1 if block1Name should be placed after block2Name, 0 if both blocks
+	 *         are similar, or 1 if block1Name should be placed before block2Name
 	 */
 	private int groupSimilarBlocks(String block1Name, String block2Name) {
 		List<String> groupStrings = new ArrayList<String>(List.of("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
@@ -273,8 +279,8 @@ public class Node {
 	 * 
 	 * @param potion1
 	 * @param potion2
-	 * @return -1 if potion1 should be placed before potion2, 0 if the potions are
-	 *         the same, or 1 if potion1 should be placed after potion2
+	 * @return -1 if potion1 should be placed after potion2, 0 if the potions are
+	 *         the same, or 1 if potion1 should be placed before potion2
 	 */
 	private int potionCompareTo(ItemStack potion1, ItemStack potion2) {
 		String potion1Type = potion1.getType().name();
@@ -328,7 +334,8 @@ public class Node {
 	 * 
 	 * @param potion1Type
 	 * @param potion2Type
-	 * @return -1 if potion2Type comes first or 1 is potion1 type comes first
+	 * @return -1 potion1 should be placed after potion2 or 1 if potion1 should be
+	 *         before after potion2
 	 */
 	private int comparePotionTypes(String potion1Type, String potion2Type) {
 		if (potion1Type.equals("POTION")) {
@@ -349,9 +356,9 @@ public class Node {
 	 * 
 	 * @param eItem1
 	 * @param eItem2
-	 * @return -1 if eItem1 should be placed before eItem2, 0 if the items have the
+	 * @return -1 if eItem1 should be placed after eItem2, 0 if the items have the
 	 *         same exact enchantments and same durability, or 1 if eItem1 should be
-	 *         placed after eItem2
+	 *         before after eItem2
 	 */
 	private int enchantedItemCompareTo(ItemStack eItem1, ItemStack eItem2) {
 		List<String> eItem1Enchants = getItemOrBookEnchants(eItem1);

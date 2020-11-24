@@ -35,7 +35,7 @@ public class ChestSort implements Listener {
 				if (player.isSneaking()) {
 					Chest chest = (Chest) block.getState();
 					ItemStack[] contents = chest.getInventory().getStorageContents();
-					testBlocks(contents);
+					//testBlocks(contents);
 					BinaryTree sortedContents = BinaryTree.makeBinaryTree(contents);
 					//sortedContents.printInOrder(sortedContents.getRoot());
 					ItemStack[] sortedContentsArray = sortedContents.getItemsInOrder();
