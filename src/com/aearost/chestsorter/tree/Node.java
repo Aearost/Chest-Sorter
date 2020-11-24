@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -28,7 +29,6 @@ public class Node {
 	public Node(ItemStack item) {
 		this.leftChild = null;
 		this.rightChild = null;
-
 		this.item = item;
 		this.name = item.getType().name();
 		this.quantity = item.getAmount();
@@ -92,14 +92,21 @@ public class Node {
 		this.hasItemMeta = hasItemMeta;
 	}
 
+	@Override
+	public String toString() {
+		if (this.hasItemMeta && (!(this.item.getItemMeta() instanceof PotionMeta)
+				|| !(this.item.getItemMeta() instanceof EnchantmentStorageMeta))) {
+			return this.item.getItemMeta().getDisplayName();
+		}
+		return name;
+	}
+
 	public int compareTo(ItemStack otherItem) {
 		if (this.isBlock && !otherItem.getType().isBlock()) {
 			return 1;
 		} else if (!this.isBlock && otherItem.getType().isBlock()) {
 			return -1;
-		}
-		// Both are blocks or both are items
-		else {
+		} else {
 			if (this.hasItemMeta && otherItem.hasItemMeta()) {
 				String thisStripped = ChatUtils.stripColor(this.item.getItemMeta().getDisplayName());
 				String otherStripped = ChatUtils.stripColor(otherItem.getItemMeta().getDisplayName());
@@ -116,10 +123,6 @@ public class Node {
 						// sorted in a specific way
 						ItemMeta thisMeta = this.item.getItemMeta();
 						ItemMeta otherMeta = otherItem.getItemMeta();
-
-//						Bukkit.broadcastMessage("-----");
-//						Bukkit.broadcastMessage("this: " + this.item.toString());
-//						Bukkit.broadcastMessage("other: " + otherItem.toString());
 						if (thisMeta instanceof PotionMeta && otherMeta instanceof PotionMeta) {
 							return potionCompareTo(this.item, otherItem);
 						} else if (thisMeta instanceof EnchantmentStorageMeta
@@ -129,7 +132,7 @@ public class Node {
 
 						// If their metas don't match any one we specified, sort directly by name
 						else {
-							compared = otherItem.getType().name().compareTo(this.getName());
+							compared = compareStrings(this.name, otherItem.getType().name());
 							if (compared > 0) {
 								return 1;
 							} else if (compared < 0) {
@@ -139,7 +142,7 @@ public class Node {
 								if (!this.isBlock && !otherItem.getType().isBlock()) {
 									return enchantedItemCompareTo(this.item, otherItem);
 								}
-								// If nothing matches, place item at the end
+								// If names match, place item at the end
 								return 1;
 							}
 						}
@@ -150,39 +153,36 @@ public class Node {
 				}
 			} else {
 				if (this.isBlock) {
+					int grouped = groupSimilarBlocks(this.name, otherItem.getType().name());
+					if (grouped != 0) {
+						return grouped;
+					}
+
 					if (!this.hasItemMeta && otherItem.hasItemMeta()) {
 						return 1;
 					} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
 						return -1;
 					} else {
-						int compared = otherItem.getType().name().compareTo(this.name);
-						if (compared > 0) {
-							return 1;
-						} else if (compared < 0) {
-							return -1;
-						} else {
-							// Items are the same
-							return 0;
-						}
+						return compareStrings(this.name, otherItem.getType().name());
 					}
 				} else {
-					// We are looking at two items; we want to group all spawn eggs together
-					if (this.name.contains("SPAWN_EGG")) {
-						if (!otherItem.getType().name().contains("SPAWN_EGG")) {
-							return -1;
-						}
-					} else if (otherItem.getType().name().contains("SPAWN_EGG")) {
-						if (!this.name.contains("SPAWN_EGG")) {
-							return 1;
-						}
+					// We are looking at two items; we want to group similar ones together
+					int grouped = groupSimilarItems(this.name, otherItem.getType().name());
+					if (grouped != 0) {
+						return grouped;
 					}
 
-					int compared = otherItem.getType().name().compareTo(this.name);
+					// If they aren't similar, group by name
+					int compared = compareStrings(this.name, otherItem.getType().name());
 					if (compared > 0) {
 						return 1;
 					} else if (compared < 0) {
 						return -1;
 					} else {
+						Bukkit.broadcastMessage(
+								"Why am I here? item1: " + this.item.toString() + ", item2: " + otherItem.toString());
+						// If names are equal and somehow passed the similar check, sort by meta
+						// Check if this ever happens.. if not we can remove!
 						if (!this.hasItemMeta && otherItem.hasItemMeta()) {
 							return 1;
 						} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
@@ -194,6 +194,63 @@ public class Node {
 				}
 			}
 		}
+	}
+
+	private int groupSimilarBlocks(String block1Name, String block2Name) {
+		List<String> groupStrings = new ArrayList<String>(List.of("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
+				"CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE", "JUNGLE", "NETHER",
+				"OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
+		int grouped = groupBlocksByStrings(block1Name, block2Name, groupStrings);
+		if (grouped != 0) {
+			return grouped;
+		}
+
+		return 0;
+	}
+
+	private int groupBlocksByStrings(String block1Name, String block2Name, List<String> groupStrings) {
+		for (String groupString : groupStrings) {
+			if (block1Name.contains(groupString)) {
+				if (!block2Name.contains(groupString)) {
+					return compareStrings(groupString, replaceStringWithGroupString(block2Name, groupStrings));
+				}
+			} else if (block2Name.contains(groupString)) {
+				if (!block1Name.contains(groupString)) {
+					return compareStrings(replaceStringWithGroupString(block1Name, groupStrings), groupString);
+				}
+			}
+		}
+		return 0;
+	}
+
+	private String replaceStringWithGroupString(String name, List<String> groupStrings) {
+		for (String groupString : groupStrings) {
+			if (name.contains(groupString))
+				return groupString;
+		}
+		return name;
+	}
+
+	private int groupSimilarItems(String item1Name, String item2Name) {
+		int grouped = groupSpawnEggs(item1Name, item2Name);
+		if (grouped != 0) {
+			return grouped;
+		}
+
+		return 0;
+	}
+
+	private int groupSpawnEggs(String item1Name, String item2Name) {
+		if (item1Name.contains("SPAWN_EGG")) {
+			if (!item2Name.contains("SPAWN_EGG")) {
+				return compareStrings("SPAWN_EGG", item2Name);
+			}
+		} else if (item2Name.contains("SPAWN_EGG")) {
+			if (!item1Name.contains("SPAWN_EGG")) {
+				return compareStrings(item1Name, "SPAWN_EGG");
+			}
+		}
+		return 0;
 	}
 
 	/**
@@ -214,7 +271,8 @@ public class Node {
 			PotionData potion2Data = ((PotionMeta) potion2.getItemMeta()).getBasePotionData();
 			String potion1Effect = potion1Data.getType().name();
 			String potion2Effect = potion2Data.getType().name();
-			int compared = potion2Effect.compareTo(potion1Effect);
+
+			int compared = compareStrings(potion1Effect, potion2Effect);
 			if (compared > 0) {
 				return 1;
 			} else if (compared < 0) {
@@ -226,39 +284,14 @@ public class Node {
 				return compareInts(potion1Modifier, potion2Modifier);
 			}
 		} else {
-			String potion = "POTION";
-			String splashPotion = "SPLASH_POTION";
-			if (potion1Type.equals(potion)) {
-				return 1;
-			} else if (potion1Type.equals(splashPotion)) {
-				if (potion2Type.equals(potion)) {
-					return -1;
-				} else {
-					return 1;
-				}
-			} else {
-				return -1;
-			}
+			return comparePotionTypes(potion1Type, potion2Type);
 		}
 	}
 
 	/**
-	 * @param int1
-	 * @param int2
-	 * @return -1, 0 or 1 as int1 is less than, equal to, or greater than int2
-	 */
-	private int compareInts(int int1, int int2) {
-		if (int1 < int2) {
-			return -1;
-		} else if (int1 == int2) {
-			return 0;
-		} else {
-			return 1;
-		}
-	}
-
-	/**
-	 * Determines if the given PotionData is normal, extended or upgraded.
+	 * Determines if the given PotionData is normal, extended or upgraded. The int
+	 * returned determines in which order that type of modified potion will be
+	 * sorted. Order is: normal, extended, upgraded.
 	 * 
 	 * @param potion
 	 * @return -1 if it's a normal potion, 0 if it is an extended potion or 1 if it
@@ -275,6 +308,29 @@ public class Node {
 	}
 
 	/**
+	 * Compares two different potion types. The int returned determines in which
+	 * order these potion types will be sorted. Order is: POTION, SPLASH_POTION,
+	 * LINGERING_POTION.
+	 * 
+	 * @param potion1Type
+	 * @param potion2Type
+	 * @return -1 if potion2Type comes first or 1 is potion1 type comes first
+	 */
+	private int comparePotionTypes(String potion1Type, String potion2Type) {
+		if (potion1Type.equals("POTION")) {
+			return 1;
+		} else if (potion1Type.equals("SPLASH_POTION")) {
+			if (potion2Type.equals("POTION")) {
+				return -1;
+			} else {
+				return 1;
+			}
+		} else {
+			return -1;
+		}
+	}
+
+	/**
 	 * Compares two enchanted items. Also works on two enchanted books.
 	 * 
 	 * @param eItem1
@@ -284,26 +340,8 @@ public class Node {
 	 *         greater than eItem2
 	 */
 	private int enchantedItemCompareTo(ItemStack eItem1, ItemStack eItem2) {
-		Set<Entry<Enchantment, Integer>> e1ItemMetaEnchants;
-		Set<Entry<Enchantment, Integer>> e2ItemMetaEnchants;
-		if (eItem1.getItemMeta() instanceof EnchantmentStorageMeta
-				&& eItem2.getItemMeta() instanceof EnchantmentStorageMeta) {
-			e1ItemMetaEnchants = ((EnchantmentStorageMeta) eItem1.getItemMeta()).getStoredEnchants().entrySet();
-			e2ItemMetaEnchants = ((EnchantmentStorageMeta) eItem2.getItemMeta()).getStoredEnchants().entrySet();
-		} else {
-			e1ItemMetaEnchants = eItem1.getItemMeta().getEnchants().entrySet();
-			e2ItemMetaEnchants = eItem2.getItemMeta().getEnchants().entrySet();
-		}
-		List<String> eItem1Enchants = new ArrayList<String>();
-		List<String> eItem2Enchants = new ArrayList<String>();
-
-		for (Map.Entry<Enchantment, Integer> entry : e1ItemMetaEnchants) {
-			eItem1Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
-		}
-
-		for (Map.Entry<Enchantment, Integer> entry : e2ItemMetaEnchants) {
-			eItem2Enchants.add(entry.getKey().getKey() + "," + entry.getValue());
-		}
+		List<String> eItem1Enchants = getItemOrBookEnchants(eItem1);
+		List<String> eItem2Enchants = getItemOrBookEnchants(eItem2);
 
 		int eItem1EnchantsSize = eItem1Enchants.size();
 		int eItem2EnchantsSize = eItem2Enchants.size();
@@ -333,13 +371,8 @@ public class Node {
 				} else if (eItem1HasDamage && eItem2HasDamage) {
 					int eItem1Damage = ((Damageable) eItem1.getItemMeta()).getDamage();
 					int eItem2Damage = ((Damageable) eItem2.getItemMeta()).getDamage();
-					if (eItem1Damage < eItem2Damage) {
-						return -1;
-					} else if (eItem1Damage > eItem2Damage) {
-						return 1;
-					} else {
-						return 0;
-					}
+					// We want the opposite effect of this method here
+					return compareInts(eItem2Damage, eItem1Damage);
 				} else {
 					return 0;
 				}
@@ -348,12 +381,51 @@ public class Node {
 		}
 	}
 
-	@Override
-	public String toString() {
-		if (this.hasItemMeta && (!(this.item.getItemMeta() instanceof PotionMeta)
-				|| !(this.item.getItemMeta() instanceof EnchantmentStorageMeta))) {
-			return this.item.getItemMeta().getDisplayName();
+	/**
+	 * Gets all enchantments from the given item or book and returns it as a list of
+	 * strings following this format: "ENCHANTMENT_NAME,LEVEL"
+	 * 
+	 * @param eItem
+	 * @return a list of strings representing all enchantments on the given item
+	 *         following this format: "ENCHANTMENT_NAME,LEVEL"
+	 */
+	private List<String> getItemOrBookEnchants(ItemStack eItem) {
+		Set<Entry<Enchantment, Integer>> eItemEnchantsSet;
+		if (eItem.getItemMeta() instanceof EnchantmentStorageMeta) {
+			eItemEnchantsSet = ((EnchantmentStorageMeta) eItem.getItemMeta()).getStoredEnchants().entrySet();
+		} else {
+			eItemEnchantsSet = eItem.getItemMeta().getEnchants().entrySet();
 		}
-		return name;
+
+		List<String> eItemEnchants = new ArrayList<String>();
+		for (Map.Entry<Enchantment, Integer> entry : eItemEnchantsSet) {
+			eItemEnchants.add(entry.getKey().getKey() + "," + entry.getValue());
+		}
+		return eItemEnchants;
+	}
+
+	/**
+	 * @param int1
+	 * @param int2
+	 * @return -1, 0 or 1 as int1 is less than, equal to, or greater than int2
+	 */
+	private int compareInts(int int1, int int2) {
+		if (int1 < int2) {
+			return -1;
+		} else if (int1 == int2) {
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+
+	/**
+	 * @param string1
+	 * @param string2
+	 * @return the opposite of String's compareTo method, because we are sorting
+	 *         words the opposite way
+	 */
+	private int compareStrings(String string1, String string2) {
+		return -1 * string1.compareTo(string2);
 	}
 }

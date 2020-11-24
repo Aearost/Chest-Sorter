@@ -35,14 +35,20 @@ public class ChestSort implements Listener {
 				if (player.isSneaking()) {
 					Chest chest = (Chest) block.getState();
 					ItemStack[] contents = chest.getInventory().getStorageContents();
-					
+					testBlocks(contents);
 					BinaryTree sortedContents = BinaryTree.makeBinaryTree(contents);
-					Bukkit.broadcastMessage("Traversing");
-					sortedContents.printInOrder(sortedContents.getRoot());
+					//sortedContents.printInOrder(sortedContents.getRoot());
 					ItemStack[] sortedContentsArray = sortedContents.getItemsInOrder();
 					chest.getInventory().setStorageContents(sortedContentsArray);
 				}
 			}
+		}
+	}
+	
+	public void testBlocks(ItemStack[] contents) {
+		for (ItemStack item : contents) {
+			if (item != null)
+				Bukkit.broadcastMessage(item.getType().name());
 		}
 	}
 }

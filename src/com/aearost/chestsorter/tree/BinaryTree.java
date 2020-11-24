@@ -13,6 +13,26 @@ public class BinaryTree {
 		itemsInOrder = new ItemStack[chestLength];
 	}
 
+	public Node getRoot() {
+		return this.root;
+	}
+	
+	public ItemStack[] getItemsInOrder() {
+		if (this.root == null) {
+			return this.itemsInOrder;
+		}
+		traverseAndStoreInOrder(this.root);
+		return this.itemsInOrder;
+	}
+
+	public void printInOrder(Node node) {
+		if (node != null) {
+			printInOrder(node.getLeftChild());
+			Bukkit.broadcastMessage(node.getItem().toString() + ", Quantity=" + node.getQuantity());
+			printInOrder(node.getRightChild());
+		}
+	}
+
 	public static BinaryTree makeBinaryTree(ItemStack[] items) {
 		BinaryTree tree = new BinaryTree(items.length);
 		for (ItemStack item : items) {
@@ -28,7 +48,7 @@ public class BinaryTree {
 		return tree;
 	}
 
-	public void add(ItemStack item) {
+	private void add(ItemStack item) {
 		root = addRecursive(root, item);
 	}
 
@@ -58,16 +78,8 @@ public class BinaryTree {
 		}
 		return current;
 	}
-
-	public void printInOrder(Node node) {
-		if (node != null) {
-			printInOrder(node.getLeftChild());
-			Bukkit.broadcastMessage(node.getItem().toString() + ", Quantity=" + node.getQuantity());
-			printInOrder(node.getRightChild());
-		}
-	}
 	
-	public void traverseAndStoreInOrder(Node node) {
+	private void traverseAndStoreInOrder(Node node) {
 		if (node != null) {
 			traverseAndStoreInOrder(node.getLeftChild());
 			
@@ -84,21 +96,5 @@ public class BinaryTree {
 			
 			traverseAndStoreInOrder(node.getRightChild());
 		}
-	}
-
-	public Node getRoot() {
-		return this.root;
-	}
-
-	public void setRoot(Node node) {
-		this.root = node;
-	}
-	
-	public ItemStack[] getItemsInOrder() {
-		if (this.root == null) {
-			return this.itemsInOrder;
-		}
-		traverseAndStoreInOrder(this.root);
-		return this.itemsInOrder;
 	}
 }
