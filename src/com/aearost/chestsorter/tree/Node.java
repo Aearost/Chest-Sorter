@@ -106,109 +106,115 @@ public class Node {
 			return 1;
 		} else if (!this.isBlock && otherItem.getType().isBlock()) {
 			return -1;
-		} else {
-			if (this.hasItemMeta && otherItem.hasItemMeta()) {
-				String thisStripped = ChatUtils.stripColor(this.item.getItemMeta().getDisplayName());
-				String otherStripped = ChatUtils.stripColor(otherItem.getItemMeta().getDisplayName());
-				int compared = otherStripped.compareTo(thisStripped);
-				if (compared > 0) {
-					return 1;
-				} else if (compared < 0) {
-					return -1;
-				} else {
-					// Both display names are equal; check if they are empty
-					if (thisStripped.isEmpty()) {
-						// Because they are empty, we are almost sure that the items being compared are
-						// from base Minecraft; first, check their metas to make sure they shouldn't be
-						// sorted in a specific way
-						ItemMeta thisMeta = this.item.getItemMeta();
-						ItemMeta otherMeta = otherItem.getItemMeta();
-						if (thisMeta instanceof PotionMeta && otherMeta instanceof PotionMeta) {
-							return potionCompareTo(this.item, otherItem);
-						} else if (thisMeta instanceof EnchantmentStorageMeta
-								&& otherMeta instanceof EnchantmentStorageMeta) {
-							return enchantedItemCompareTo(this.item, otherItem);
-						}
-
-						// If their metas don't match any one we specified, sort directly by name
-						else {
-							compared = compareStrings(this.name, otherItem.getType().name());
-							if (compared > 0) {
-								return 1;
-							} else if (compared < 0) {
-								return -1;
-							} else {
-								// If names match, place in order of enchantment
-								if (!this.isBlock && !otherItem.getType().isBlock()) {
-									return enchantedItemCompareTo(this.item, otherItem);
-								}
-								// If names match, place item at the end
-								return 1;
-							}
-						}
-					} else {
-						// Both names correspond to the same exact item
-						return 0;
-					}
-				}
+		} else if (this.hasItemMeta && otherItem.hasItemMeta()) {
+			String thisStripped = ChatUtils.stripColor(this.item.getItemMeta().getDisplayName());
+			String otherStripped = ChatUtils.stripColor(otherItem.getItemMeta().getDisplayName());
+			int compared = otherStripped.compareTo(thisStripped);
+			if (compared > 0) {
+				return 1;
+			} else if (compared < 0) {
+				return -1;
 			} else {
-				if (this.isBlock) {
-					int grouped = groupSimilarBlocks(this.name, otherItem.getType().name());
-					if (grouped != 0) {
-						return grouped;
-					}
-
-					if (!this.hasItemMeta && otherItem.hasItemMeta()) {
-						return 1;
-					} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
-						return -1;
+				// Both display names are equal; check if they are empty
+				if (thisStripped.isEmpty()) {
+					// Because they are empty, we are almost sure that the items being compared are
+					// from base Minecraft; first, check their metas to make sure they shouldn't be
+					// sorted in a specific way
+					ItemMeta thisMeta = this.item.getItemMeta();
+					ItemMeta otherMeta = otherItem.getItemMeta();
+					if (thisMeta instanceof PotionMeta && otherMeta instanceof PotionMeta) {
+						return potionCompareTo(this.item, otherItem);
+					} else if (thisMeta instanceof EnchantmentStorageMeta
+							&& otherMeta instanceof EnchantmentStorageMeta) {
+						return enchantedItemCompareTo(this.item, otherItem);
 					} else {
-						return compareStrings(this.name, otherItem.getType().name());
-					}
-				} else {
-					// We are looking at two items; we want to group similar ones together
-					int grouped = groupSimilarItems(this.name, otherItem.getType().name());
-					if (grouped != 0) {
-						return grouped;
-					}
-
-					// If they aren't similar, group by name
-					int compared = compareStrings(this.name, otherItem.getType().name());
-					if (compared > 0) {
-						return 1;
-					} else if (compared < 0) {
-						return -1;
-					} else {
-						Bukkit.broadcastMessage(
-								"Why am I here? item1: " + this.item.toString() + ", item2: " + otherItem.toString());
-						// If names are equal and somehow passed the similar check, sort by meta
-						// Check if this ever happens.. if not we can remove!
-						if (!this.hasItemMeta && otherItem.hasItemMeta()) {
+						// If their metas don't match any one we specified, sort directly by name
+						compared = compareStrings(this.name, otherItem.getType().name());
+						if (compared > 0) {
 							return 1;
-						} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
+						} else if (compared < 0) {
 							return -1;
 						} else {
-							return 0;
+							// If names match, place in order of enchantment
+							if (!this.isBlock && !otherItem.getType().isBlock()) {
+								return enchantedItemCompareTo(this.item, otherItem);
+							}
+							// If names match, place item at the end
+							return 1;
 						}
 					}
+				} else {
+					// Both names correspond to the same exact item
+					return 0;
+				}
+			}
+		} else if (this.isBlock && otherItem.getType().isBlock()) {
+			// We are looking at two blocks; we want to group similar ones together
+			int grouped = groupSimilarBlocks(this.name, otherItem.getType().name());
+			if (grouped != 0) {
+				return grouped;
+			}
+
+			if (!this.hasItemMeta && otherItem.hasItemMeta()) {
+				return 1;
+			} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
+				return -1;
+			} else {
+				return compareStrings(this.name, otherItem.getType().name());
+			}
+		} else {
+			// We are looking at two items; we want to group similar ones together
+			int grouped = groupSimilarItems(this.name, otherItem.getType().name());
+			if (grouped != 0) {
+				return grouped;
+			}
+
+			// If they are similar or are not being grouped, sort by name
+			int compared = compareStrings(this.name, otherItem.getType().name());
+			if (compared > 0) {
+				return 1;
+			} else if (compared < 0) {
+				return -1;
+			} else {
+				Bukkit.broadcastMessage(
+						"Why am I here? item1: " + this.item.toString() + ", item2: " + otherItem.toString());
+				// If names are equal and somehow passed the similar check, sort by meta
+				// Check if this ever happens.. if not we can remove!
+				if (!this.hasItemMeta && otherItem.hasItemMeta()) {
+					return 1;
+				} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
+					return -1;
+				} else {
+					return 0;
 				}
 			}
 		}
 	}
 
+	/**
+	 * Takes two vanilla block names as input and creates a list of all key words to
+	 * group blocks by. For each group string created, if the pair of block names
+	 * both contain the same group string, they are considered similar and 0 is
+	 * returned. The same happens if both don't contain any group string. If only
+	 * one of them contains the group string, both block names will need to be
+	 * modified to determine how they get sorted. The block name that contained the
+	 * group string will simply be replaced by the group string itself, while the
+	 * other block needs to be replaced by any group string that it matches, if it
+	 * does match one (in order to maintain alphabetical order once all matching
+	 * block names are essentially stripped and sorted by group string). Once these
+	 * replacements are done, both strings are compared and returned based on the
+	 * compareStrings method.
+	 * 
+	 * @param block1Name
+	 * @param block2Name
+	 * @return -1 if block1Name should be placed before block2Name, 0 if both blocks
+	 *         are similar, or 1 if block1Name should be placed after block2Name
+	 */
 	private int groupSimilarBlocks(String block1Name, String block2Name) {
 		List<String> groupStrings = new ArrayList<String>(List.of("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
-				"CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE", "JUNGLE", "NETHER",
-				"OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
-		int grouped = groupBlocksByStrings(block1Name, block2Name, groupStrings);
-		if (grouped != 0) {
-			return grouped;
-		}
+				"BLOCK", "CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE", "JUNGLE",
+				"NETHER", "OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
 
-		return 0;
-	}
-
-	private int groupBlocksByStrings(String block1Name, String block2Name, List<String> groupStrings) {
 		for (String groupString : groupStrings) {
 			if (block1Name.contains(groupString)) {
 				if (!block2Name.contains(groupString)) {
@@ -223,6 +229,14 @@ public class Node {
 		return 0;
 	}
 
+	/**
+	 * Checks if the given string name contains any of the given group strings. If
+	 * it does, return the corresponding group string. If it doesn't, return itself.
+	 * 
+	 * @param name
+	 * @param groupStrings
+	 * @return the group string contained by name, or name
+	 */
 	private String replaceStringWithGroupString(String name, List<String> groupStrings) {
 		for (String groupString : groupStrings) {
 			if (name.contains(groupString))
@@ -254,13 +268,13 @@ public class Node {
 	}
 
 	/**
-	 * Compares two potions that have 1 effect. May work weirdly with potions that
-	 * have more than 1 effect.
+	 * Compares two potions that have 1 effect. May or may not work with potions
+	 * that have more than 1 effect.
 	 * 
 	 * @param potion1
 	 * @param potion2
-	 * @return 0 if the potions are the same, 1 if potion1 is less than potion2 or
-	 *         -1 if potion1 is greater than potion2
+	 * @return -1 if potion1 should be placed before potion2, 0 if the potions are
+	 *         the same, or 1 if potion1 should be placed after potion2
 	 */
 	private int potionCompareTo(ItemStack potion1, ItemStack potion2) {
 		String potion1Type = potion1.getType().name();
@@ -294,7 +308,7 @@ public class Node {
 	 * sorted. Order is: normal, extended, upgraded.
 	 * 
 	 * @param potion
-	 * @return -1 if it's a normal potion, 0 if it is an extended potion or 1 if it
+	 * @return -1 if it's a normal potion, 0 if it is an extended potion, or 1 if it
 	 *         is an upgraded potion
 	 */
 	private int getPotionModifier(PotionData potion) {
@@ -335,9 +349,9 @@ public class Node {
 	 * 
 	 * @param eItem1
 	 * @param eItem2
-	 * @return 0 if the items have the same exact enchantments, same number and same
-	 *         durability - 1 if eItem1 is less than eItem2 or -1 if eItem1 is
-	 *         greater than eItem2
+	 * @return -1 if eItem1 should be placed before eItem2, 0 if the items have the
+	 *         same exact enchantments and same durability, or 1 if eItem1 should be
+	 *         placed after eItem2
 	 */
 	private int enchantedItemCompareTo(ItemStack eItem1, ItemStack eItem2) {
 		List<String> eItem1Enchants = getItemOrBookEnchants(eItem1);
@@ -371,7 +385,8 @@ public class Node {
 				} else if (eItem1HasDamage && eItem2HasDamage) {
 					int eItem1Damage = ((Damageable) eItem1.getItemMeta()).getDamage();
 					int eItem2Damage = ((Damageable) eItem2.getItemMeta()).getDamage();
-					// We want the opposite effect of this method here
+					// We want the opposite effect of this method here, so we send the parameters in
+					// the opposite order
 					return compareInts(eItem2Damage, eItem1Damage);
 				} else {
 					return 0;
@@ -383,7 +398,7 @@ public class Node {
 
 	/**
 	 * Gets all enchantments from the given item or book and returns it as a list of
-	 * strings following this format: "ENCHANTMENT_NAME,LEVEL"
+	 * strings following this format: "ENCHANTMENT_NAME,LEVEL".
 	 * 
 	 * @param eItem
 	 * @return a list of strings representing all enchantments on the given item
