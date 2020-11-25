@@ -170,22 +170,28 @@ public class Node {
 			}
 		} else {
 			// We are looking at two items; we want to group similar ones together
-			int grouped = groupSimilarItems(this.name, otherItem.getType().name());
+			// We want to avoid grouping with potions, as they have non-similar names (so
+			// random items can come between them if we aren't careful)
+			String replacementForOtherItemName = otherItem.getType().name();
+			if (this.item.getItemMeta() instanceof PotionMeta) {
+				this.name = "POTION";
+			} else if (otherItem.getItemMeta() instanceof PotionMeta) {
+				replacementForOtherItemName = "POTION";
+			}
+
+			int grouped = groupSimilarItems(this.name, replacementForOtherItemName);
 			if (grouped != 0) {
 				return grouped;
 			}
 
 			// If they are similar or are not being grouped, sort by name
-			int compared = compareStrings(this.name, otherItem.getType().name());
+			int compared = compareStrings(this.name, replacementForOtherItemName);
 			if (compared > 0) {
 				return 1;
 			} else if (compared < 0) {
 				return -1;
 			} else {
-				Bukkit.broadcastMessage(
-						"Why am I here? item1: " + this.item.toString() + ", item2: " + otherItem.toString());
-				// If names are equal and somehow passed the similar check, sort by meta
-				// Check if this ever happens.. if not we can remove!
+				// If names are equal and passed the similar check, sort by meta
 				if (!this.hasItemMeta && otherItem.hasItemMeta()) {
 					return 1;
 				} else if (this.hasItemMeta && !otherItem.hasItemMeta()) {
@@ -198,18 +204,18 @@ public class Node {
 	}
 
 	/**
-	 * Takes two vanilla block names as input and creates a list of all key words to
-	 * group blocks by. For each group string created, if the pair of block names
-	 * both contain the same group string, they are considered similar and 0 is
-	 * returned. The same happens if both don't contain any group string. If only
-	 * one of them contains the group string, both block names will need to be
-	 * modified to determine how they get sorted. The block name that contained the
-	 * group string will simply be replaced by the group string itself, while the
-	 * other block needs to be replaced by any group string that it matches, if it
-	 * does match one (in order to maintain alphabetical order once all matching
-	 * block names are essentially stripped and sorted by group string). Once these
-	 * replacements are done, both strings are compared and returned based on the
-	 * compareStrings method.
+	 * Takes two vanilla block names and creates a list of all key words to group
+	 * blocks by. For each group string created, if the pair of block names both
+	 * contain the same group string, they are considered similar and 0 is returned.
+	 * The same happens if both don't contain any group string. If only one of them
+	 * contains the group string, both block names will need to be modified to
+	 * determine how they get sorted. The block name that contained the group string
+	 * will simply be replaced by the group string itself, while the other block
+	 * needs to be replaced by any group string that it matches, if it does match
+	 * one (in order to maintain alphabetical order once all matching block names
+	 * are essentially stripped and sorted by group string). Once these replacements
+	 * are done, both strings are compared and returned based on the compareStrings
+	 * method.
 	 * 
 	 * @param block1Name
 	 * @param block2Name
@@ -218,18 +224,14 @@ public class Node {
 	 */
 	private int groupSimilarBlocks(String block1Name, String block2Name) {
 		List<String> groupStrings = new ArrayList<String>(List.of("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
-				"BLOCK", "CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE", "JUNGLE",
-				"NETHER", "OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
+				"BLACKSTONE", "BLOCK", "CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE",
+				"JUNGLE", "NETHER", "OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
 
 		for (String groupString : groupStrings) {
-			if (block1Name.contains(groupString)) {
-				if (!block2Name.contains(groupString)) {
-					return compareStrings(groupString, replaceStringWithGroupString(block2Name, groupStrings));
-				}
-			} else if (block2Name.contains(groupString)) {
-				if (!block1Name.contains(groupString)) {
-					return compareStrings(replaceStringWithGroupString(block1Name, groupStrings), groupString);
-				}
+			if (block1Name.contains(groupString) && !block2Name.contains(groupString)) {
+				return compareStrings(groupString, replaceStringWithGroupString(block2Name, groupStrings));
+			} else if (block2Name.contains(groupString) && !block1Name.contains(groupString)) {
+				return compareStrings(replaceStringWithGroupString(block1Name, groupStrings), groupString);
 			}
 		}
 		return 0;
@@ -251,26 +253,68 @@ public class Node {
 		return name;
 	}
 
+	/**
+	 * Takes two vanilla item names and tests if they are similar in some way so
+	 * that they may be properly grouped. They are considered similar if they both
+	 * are or aren't able to be grouped by a specific grouping term. If this is the
+	 * case, the next test begins. If only one of them is able to be grouped, then
+	 * the items are not considered similar and the method exits there. Current
+	 * groupings: spawn eggs, equipment (tools, swords and armor).
+	 * 
+	 * @param item1Name
+	 * @param item2Name
+	 * @return -1 if item1Name should be placed after item2Name, 0 if they are
+	 *         similar, or -1 if item1Name should be placed before item2Name
+	 */
 	private int groupSimilarItems(String item1Name, String item2Name) {
 		int grouped = groupSpawnEggs(item1Name, item2Name);
 		if (grouped != 0) {
 			return grouped;
 		}
-
-		return 0;
+		return compareEquipmentType(item1Name, item2Name);
 	}
 
 	private int groupSpawnEggs(String item1Name, String item2Name) {
-		if (item1Name.contains("SPAWN_EGG")) {
-			if (!item2Name.contains("SPAWN_EGG")) {
-				return compareStrings("SPAWN_EGG", item2Name);
-			}
-		} else if (item2Name.contains("SPAWN_EGG")) {
-			if (!item1Name.contains("SPAWN_EGG")) {
-				return compareStrings(item1Name, "SPAWN_EGG");
-			}
+		if (item1Name.contains("SPAWN_EGG") && !item2Name.contains("SPAWN_EGG")) {
+			return compareStrings("SPAWN_EGG", item2Name);
+		} else if (!item1Name.contains("SPAWN_EGG") && item2Name.contains("SPAWN_EGG")) {
+			return compareStrings(item1Name, "SPAWN_EGG");
 		}
 		return 0;
+	}
+
+	// Compare type first, then material
+	private int compareEquipmentType(String equipment1Name, String equipment2Name) {
+		String equipment1Type = equipment1Name.substring(equipment1Name.indexOf("_") + 1);
+		String equipment2Type = equipment2Name.substring(equipment2Name.indexOf("_") + 1);
+		int equipment1OrderingInt = getEquipmentTypeOrderingInt(equipment1Type);
+		int equipment2OrderingInt = getEquipmentTypeOrderingInt(equipment2Type);
+		return compareInts(equipment1OrderingInt, equipment2OrderingInt);
+	}
+
+	private int getEquipmentTypeOrderingInt(String equipmentType) {
+		switch (equipmentType) {
+		case "SHOVEL":
+			return 9;
+		case "PICKAXE":
+			return 8;
+		case "AXE":
+			return 7;
+		case "HOE":
+			return 6;
+		case "SWORD":
+			return 5;
+		case "HELMET":
+			return 4;
+		case "CHESTPLATE":
+			return 3;
+		case "LEGGINGS":
+			return 2;
+		case "BOOTS":
+			return 1;
+		default:
+			return -1;
+		}
 	}
 
 	/**
@@ -313,15 +357,35 @@ public class Node {
 	 * returned determines in which order that type of modified potion will be
 	 * sorted. Order is: normal, extended, upgraded.
 	 * 
-	 * @param potion
-	 * @return -1 if it's a normal potion, 0 if it is an extended potion, or 1 if it
-	 *         is an upgraded potion
+	 * @param potionData
+	 * @return -1 if it's an upgraded potion, 0 if it is an extended potion, or 1 if
+	 *         it is a normal potion
 	 */
-	private int getPotionModifier(PotionData potion) {
-		if (potion.isExtended()) {
-			return 0;
-		} else if (potion.isUpgraded()) {
+	private int getPotionModifier(PotionData potionData) {
+		if (potionData.isUpgraded()) {
 			return -1;
+		} else if (potionData.isExtended()) {
+			return 0;
+		} else {
+			return 1;
+		}
+	}
+
+	/** TODO Make this work with other method to make things more consistent and not use ugly boolean strings
+	 * Compares two different potion types. The int returned determines in which
+	 * order these potion types will be sorted. Order is: POTION, SPLASH_POTION,
+	 * LINGERING_POTION.
+	 * 
+	 * @param potion1Type
+	 * @param potion2Type
+	 * @return -1 potion1 should be placed after potion2 or 1 if potion1 should be
+	 *         before after potion2
+	 */
+	private int getPotionType(String potionType) {
+		if (potionType.equals("POTION")) {
+			return -1;
+		} else if (potionType.equals("SPLASH_POTION")) {
+			return 0;
 		} else {
 			return 1;
 		}
