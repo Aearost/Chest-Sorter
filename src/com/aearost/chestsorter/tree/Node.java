@@ -1,12 +1,12 @@
 package com.aearost.chestsorter.tree;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -102,6 +102,12 @@ public class Node {
 	}
 
 	/**
+	 * Compares two ItemStacks based on a bunch of properties. In general, blocks
+	 * come before items. If both ItemStacks contain metadata, a bunch of checks are
+	 * done. Otherwise, if both ItemStacks being compared are blocks, they pass
+	 * through a complex algorithm that determines where they should be placed based
+	 * on group strings. Finally, if both ItemStacks being compared are items, a few
+	 * checks are made to group them, similarly to blocks, but not as complex.
 	 * 
 	 * @param otherItem
 	 * @return -1 if this.item should be placed after otherItem, 0 if they're the
@@ -223,7 +229,7 @@ public class Node {
 	 *         are similar, or 1 if block1Name should be placed before block2Name
 	 */
 	private int groupSimilarBlocks(String block1Name, String block2Name) {
-		List<String> groupStrings = new ArrayList<String>(List.of("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
+		List<String> groupStrings = new ArrayList<String>(Arrays.asList("SAPLING", "ACACIA", "ANDESITE", "BED", "BIRCH",
 				"BLACKSTONE", "BLOCK", "CARPET", "CONCRETE", "CORAL", "DARK_OAK", "DIORITE", "GLASS", "GRANITE", "ICE",
 				"JUNGLE", "NETHER", "OAK", "PRISMARINE", "SANDSTONE", "SPRUCE", "STONE", "TERRACOTTA", "WOOL"));
 
@@ -274,6 +280,17 @@ public class Node {
 		return compareEquipmentType(item1Name, item2Name);
 	}
 
+	/**
+	 * Takes two vanilla item names and and checks if either of them are spawn eggs.
+	 * If they both are or aren't, they are considered similar and 0 is returned. If
+	 * only one of them is, it's name is replaced by "SPAWN_EGG" so that it may be
+	 * properly lexicographically compared with the other item.
+	 * 
+	 * @param item1Name
+	 * @param item2Name
+	 * @return -1 if item1Name should be placed after item2Name, 0 if both items are
+	 *         similar, or 1 if item1Name should be placed before item2Name
+	 */
 	private int groupSpawnEggs(String item1Name, String item2Name) {
 		if (item1Name.contains("SPAWN_EGG") && !item2Name.contains("SPAWN_EGG")) {
 			return compareStrings("SPAWN_EGG", item2Name);
@@ -283,7 +300,20 @@ public class Node {
 		return 0;
 	}
 
-	// Compare type first, then material
+	/**
+	 * Compares two different equipment types. The int returned determines in which
+	 * order these pieces of equipment will be sorted. Order is: SHOVEL, PICKAXE,
+	 * AXE, HOE, SWORD, HELMET, CHESTPLATE, LEGGINGS, BOOTS. If they are both the
+	 * same equipment type, or if they aren't pieces of equipment at all, the method
+	 * will exit with 0. If one of the items is not a piece of equipment, it will be
+	 * placed after the piece of equipment.
+	 * 
+	 * @param equipment1Name
+	 * @param equipment2Name
+	 * @return -1 if equipment1Name should be placed after equipment2Name, 0 if both
+	 *         items are similar, or 1 if equipment1Name should be placed before
+	 *         equipment2Name
+	 */
 	private int compareEquipmentType(String equipment1Name, String equipment2Name) {
 		String equipment1Type = equipment1Name.substring(equipment1Name.indexOf("_") + 1);
 		String equipment2Type = equipment2Name.substring(equipment2Name.indexOf("_") + 1);
@@ -292,6 +322,11 @@ public class Node {
 		return compareInts(equipment1OrderingInt, equipment2OrderingInt);
 	}
 
+	/**
+	 * @param equipmentType
+	 * @return an int depicting in which order a piece of equipment should be
+	 *         placed, or -1 if it isn't a piece of equipment
+	 */
 	private int getEquipmentTypeOrderingInt(String equipmentType) {
 		switch (equipmentType) {
 		case "SHOVEL":
@@ -329,8 +364,11 @@ public class Node {
 	private int potionCompareTo(ItemStack potion1, ItemStack potion2) {
 		String potion1Type = potion1.getType().name();
 		String potion2Type = potion2.getType().name();
+		int potion1TypeInt = getPotionType(potion1Type);
+		int potion2TypeInt = getPotionType(potion2Type);
+		int potionTypesCompared = compareInts(potion1TypeInt, potion2TypeInt);
 
-		if (potion1Type.equals(potion2Type)) {
+		if (potionTypesCompared == 0) {
 			PotionData potion1Data = ((PotionMeta) potion1.getItemMeta()).getBasePotionData();
 			PotionData potion2Data = ((PotionMeta) potion2.getItemMeta()).getBasePotionData();
 			String potion1Effect = potion1Data.getType().name();
@@ -343,12 +381,12 @@ public class Node {
 				return -1;
 			} else {
 				// Effects are the same, check the modifiers
-				int potion1Modifier = getPotionModifier(potion1Data);
-				int potion2Modifier = getPotionModifier(potion2Data);
-				return compareInts(potion1Modifier, potion2Modifier);
+				int potion1ModifierInt = getPotionModifier(potion1Data);
+				int potion2ModifierInt = getPotionModifier(potion2Data);
+				return compareInts(potion1ModifierInt, potion2ModifierInt);
 			}
 		} else {
-			return comparePotionTypes(potion1Type, potion2Type);
+			return potionTypesCompared;
 		}
 	}
 
@@ -358,8 +396,8 @@ public class Node {
 	 * sorted. Order is: normal, extended, upgraded.
 	 * 
 	 * @param potionData
-	 * @return -1 if it's an upgraded potion, 0 if it is an extended potion, or 1 if
-	 *         it is a normal potion
+	 * @return -1 if it's an upgraded potion, 0 if it's an extended potion, or 1 if
+	 *         it's a normal potion
 	 */
 	private int getPotionModifier(PotionData potionData) {
 		if (potionData.isUpgraded()) {
@@ -371,47 +409,23 @@ public class Node {
 		}
 	}
 
-	/** TODO Make this work with other method to make things more consistent and not use ugly boolean strings
-	 * Compares two different potion types. The int returned determines in which
-	 * order these potion types will be sorted. Order is: POTION, SPLASH_POTION,
-	 * LINGERING_POTION.
+	/**
+	 * Determines if the given potionType is a potion, splash potion or lingering
+	 * potion. The int returned determines in which order these potion types will be
+	 * sorted. Order is: POTION, SPLASH_POTION, LINGERING_POTION.
 	 * 
 	 * @param potion1Type
 	 * @param potion2Type
-	 * @return -1 potion1 should be placed after potion2 or 1 if potion1 should be
-	 *         before after potion2
+	 * @return -1 if it's a lingering potion, 0 if it's a splash potion, or 1 if
+	 *         it's a normal potion
 	 */
 	private int getPotionType(String potionType) {
-		if (potionType.equals("POTION")) {
+		if (potionType.equals("LINGERING_POTION")) {
 			return -1;
 		} else if (potionType.equals("SPLASH_POTION")) {
 			return 0;
 		} else {
 			return 1;
-		}
-	}
-
-	/**
-	 * Compares two different potion types. The int returned determines in which
-	 * order these potion types will be sorted. Order is: POTION, SPLASH_POTION,
-	 * LINGERING_POTION.
-	 * 
-	 * @param potion1Type
-	 * @param potion2Type
-	 * @return -1 potion1 should be placed after potion2 or 1 if potion1 should be
-	 *         before after potion2
-	 */
-	private int comparePotionTypes(String potion1Type, String potion2Type) {
-		if (potion1Type.equals("POTION")) {
-			return 1;
-		} else if (potion1Type.equals("SPLASH_POTION")) {
-			if (potion2Type.equals("POTION")) {
-				return -1;
-			} else {
-				return 1;
-			}
-		} else {
-			return -1;
 		}
 	}
 

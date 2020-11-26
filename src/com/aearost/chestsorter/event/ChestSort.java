@@ -26,7 +26,7 @@ public class ChestSort implements Listener {
 	 * @param e
 	 */
 	@EventHandler
-	public void onShopCreate(final PlayerInteractEvent e) {
+	public void onChestSort(final PlayerInteractEvent e) {
 		
 		if (e.getHand() == EquipmentSlot.HAND && e.getAction() == Action.LEFT_CLICK_BLOCK) {
 			Block block = e.getClickedBlock();
